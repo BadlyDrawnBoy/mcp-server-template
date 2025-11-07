@@ -1,3 +1,12 @@
+# MCP Server Template (WIP)
+
+Dies ist die Vorbereitungsphase für ein **generisches MCP-Server-Skeleton** (Starlette/OpenAPI/SSE/Envelopes),
+das sich schnell an unterschiedliche Backends anpassen lässt (z. B. KMyMoney via D-Bus, Ghidra, eigene Tools).
+
+> **Status:** Vorbereitete Codebasis – Spezialisierungen sind **noch vorhanden**.
+> Ein Code-Assistent bekommt im Repo (siehe `TASKS_FOR_CODE_ASSISTANT.md`) klare Anweisungen, alles zu entschlacken
+> und ein neutrales Skeleton zu erzeugen (nur Server, keine App-Bindung).
+
 # Ghidra MCPd - token-efficient MCP server for Ghidra
 
 Deterministic MCP server for the Ghidra plugin focused on lowering token spend while keeping schemas stable and auditable.
