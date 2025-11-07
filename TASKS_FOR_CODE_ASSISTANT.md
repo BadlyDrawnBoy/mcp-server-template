@@ -1,64 +1,60 @@
 # Refactor: Turn this repository into a **generic MCP Server Skeleton**
 
 ## Goal
-Produce a minimal, framework-quality **MCP server template** (Starlette/OpenAPI/SSE/Env-config/Deterministic envelopes)
+Produce a minimal, framework-quality **MCP server template** (Starlette / OpenAPI / SSE / Env-config / deterministic envelopes)
 with **no app specialization**. Keep a clean, documented extension surface so new backends (e.g., KMyMoney via D-Bus)
 can be added as plugins/adapters.
 
 ## Keep (core skeleton)
-- `bridge/app.py` (factory, routing mount, OpenAPI, SSE/Readiness gates).
-- `bridge/utils/*` (config/env, envelope/error helpers, safety limits).
-- `.github/workflows/*` (Python CI; remove Java/Ghidra steps if any).
-- `docs/` (keep structure; update content to generic MCP).
-- `requirements*.txt` (trim to essentials).
-- `bin/`, `.ci/`, `.githooks/` only if still relevant.
+- `bridge/app.py` (factory, routing mount, OpenAPI, SSE/Readiness gates)
+- `bridge/utils/*` (config/env, envelope/error helpers, safety limits)
+- `.github/workflows/*` (Python CI; remove Java/Ghidra steps if any)
+- `docs/` (keep structure; update content to generic MCP)
+- `requirements*.txt` (trim to essentials)
+- `bin/`, `.ci/`, `.githooks/` only if still relevant
 
 ## Remove (app specializations & dead code)
 Delete everything that hardcodes **Ghidra** or other specific apps:
-
 - Packages:
   - `bridge/ghidra/**`
   - `bridge/features/**` (disasm, strings, xrefs, jt, mmio, …)
-  - alle `bridge/api/routes/*` die `GhidraClient` oder Ghidra-Features importieren
+  - any `bridge/api/routes/*` that import `GhidraClient` or Ghidra features
 - Tests:
-  - `bridge/tests/**` die sich auf Ghidra/Disasm/Search/Xrefs/etc. beziehen
+  - `bridge/tests/**` that target Ghidra/Disasm/Search/Xrefs/etc.
 - Docs:
-  - `docs/*` mit Ghidra-Inhalten (API, plugin ground truth, ghidra quicklinks, …)
+  - any `docs/*` with Ghidra-specific content (API, plugin ground truth, quicklinks, …)
 - Scripts:
-  - alles, was Ghidra/JAR/Maven/Probe/SSE-Smoke explizit für Ghidra verwendet
-
-> Tipp: nutze globs und sichere dich mit Grep ab (`git grep -n 'Ghidra'`).
+  - Ghidra/JAR/Maven/probe scripts tailored to Ghidra
 
 ## Rename / Neutralize
-- API title: **"MCP Server Template API"**.
-- ENV Prefix: **`MCP_`** (ersetze `GHIDRA_MCP_` / `KMYMCP_` → `MCP_`).
-  - `MCP_ENABLE_WRITES`, `MCP_MAX_WRITES_PER_REQUEST`, `MCP_MAX_ITEMS_PER_BATCH`, `MCP_AUDIT_LOG`, `MCP_URL` (falls benötigt).
-- Package hints: keine App-Begriffe in Modulnamen.
+- API title → **"MCP Server Template API"**
+- ENV prefix → **`MCP_`** (replace `GHIDRA_MCP_` / `KMYMCP_`):
+  - `MCP_ENABLE_WRITES`, `MCP_MAX_WRITES_PER_REQUEST`, `MCP_MAX_ITEMS_PER_BATCH`, `MCP_AUDIT_LOG`, `MCP_URL` (if needed)
+- No app names in package/module identifiers
 
 ## Provide a minimal runnable template
 - Endpoints:
-  - `GET /api/ping.json` → `{ok:true,"data":{"pong":true}}`
-  - `GET /api/version.json` → `{ok:true,"data":{"version":"0.0.0"}}`
+  - `GET /api/ping.json` → `{"ok":true,"data":{"pong":true}}`
+  - `GET /api/version.json` → `{"ok":true,"data":{"version":"0.0.0"}}`
 - SSE:
-  - `GET /sse` mit Einbahn-Policy (1 aktive Verbindung), 409/405 wie bisher.
+  - `GET /sse` with single-connection gate (second GET → 409; POST → 405)
 - OpenAPI:
-  - aktualisiere Titel/Version; ersetze App-spezifische Schemas.
+  - generic title/version; remove app-specific schemas
 - Config:
-  - env-gates, deterministic envelopes, safety-limits bleiben erhalten.
+  - env gates, deterministic envelopes, safety limits retained
 - Tests:
-  - 2–3 minimalistische Tests (ping/version, envelope shape, SSE gate smoke).
+  - minimal set for ping/version, envelope shape, SSE gate smoke
 - Docs:
-  - `README.md` kurz & generisch (Quickstart, Config, “How to add a backend”).
-  - `docs/extend.md`: Anleitung für neue Backends (Adapter/Routes/MCP-Tools).
+  - `README.md` generic (Quickstart, Config, “How to add a backend”)
+  - `docs/extend.md`: guide for adding backends (adapter/routes/MCP tools)
 
 ## Acceptance Criteria (DoD)
-- `uvicorn bridge.app:create_app --factory` startet ohne optionalen Abhängigkeiten.
-- `curl /api/ping.json` und `/api/version.json` liefern `ok:true`.
-- `GET /sse` Gate funktioniert (409/405 korrekt).
-- CI grün (Lint + Unit/Contract minimal).
-- Keine Erwähnung von Ghidra/KMyMoney in Code/Docs außer im "Extend"-Beispiel.
+- `uvicorn bridge.app:create_app --factory` starts without optional deps
+- `GET /api/ping.json` and `/api/version.json` return `ok:true`
+- `GET /sse` gate behaves as specified (409/405)
+- CI green (lint + minimal tests)
+- No mention of Ghidra/KMyMoney in code/docs except in the “Extend” example
 
 ## Stretch (optional)
-- Plugin-discovery (z. B. `bridge/backends/*` auto-mount).
-- Example backend stub in `bridge/backends/example/` (nur Mock).
-
+- Simple plugin discovery (e.g., auto-mount `bridge/backends/*`)
+- Example backend stub in `bridge/backends/example/` (mock only)
