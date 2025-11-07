@@ -11,7 +11,7 @@ from starlette.testclient import TestClient
 expected = {
     "openapi_get": {
         "openapi": "3.1.0",
-        "info": {"title": "Ghidra MCP Bridge (stub)", "version": "0.1"},
+        "info": {"title": "MCP Server Template", "version": "0.0.0"},
         "x-openwebui-mcp": {
             "transport": "sse",
             "sse_url": "/sse",
@@ -29,7 +29,10 @@ expected = {
                 "resources": {"subscribe": False, "listChanged": False},
                 "tools": {"listChanged": False},
             },
-            "serverInfo": {"name": "ghidra-mcp", "version": "1.14.1"},
+            "serverInfo": {
+                "name": "mcp-server-template",
+                "version": "0.0.0",
+            },
         },
     },
     "health_get": {

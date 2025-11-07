@@ -10,7 +10,6 @@
 #   * initialize + notifications/initialized → ready → ping returns 202
 #
 # Usage:
-#   GHIDRA_SERVER_URL=http://127.0.0.1:8080/ \
 #   MCP_SHIM=http://127.0.0.1:8081 \
 #   bash scripts/smoke_bridge.sh
 #
