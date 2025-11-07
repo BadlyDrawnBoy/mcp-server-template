@@ -1,28 +1,26 @@
-"""Legacy Starlette shim used by OpenWebUI deployments."""
-
+"""Compatibility shim exposing SSE endpoints in OpenWebUI's expected shape."""
 from __future__ import annotations
 
 import json
 from typing import Any, Sequence
 
 import httpx
-
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse, StreamingResponse, PlainTextResponse
-from starlette.routing import Route
 from starlette.requests import Request
+from starlette.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from starlette.routing import Route
 
 
 def build_openwebui_shim(
     upstream_base: str, *, extra_routes: Sequence[Route] | None = None
 ) -> Starlette:
-    """Create a Starlette app exposing the legacy OpenWebUI shim routes."""
+    """Create a Starlette app exposing OpenWebUI-compatible routes."""
 
     async def openapi_get(request: Request):  # pragma: no cover - thin glue
         return JSONResponse(
             {
                 "openapi": "3.1.0",
-                "info": {"title": "MCP Server Template (stub)", "version": "0.1"},
+                "info": {"title": "MCP Server Template", "version": "0.0.0"},
                 "x-openwebui-mcp": {
                     "transport": "sse",
                     "sse_url": "/sse",
@@ -50,7 +48,7 @@ def build_openwebui_shim(
                         "resources": {"subscribe": False, "listChanged": False},
                         "tools": {"listChanged": False},
                     },
-                    "serverInfo": {"name": "ghidra-mcp", "version": "1.14.1"},
+                    "serverInfo": {"name": "mcp-server-template", "version": "0.0.0"},
                 },
             }
         )

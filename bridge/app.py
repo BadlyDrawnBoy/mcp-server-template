@@ -1,17 +1,15 @@
-"""Application wiring for the modular bridge server."""
+"""Application wiring for the generic MCP server template."""
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import json
 import logging
-import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from types import MethodType
-from importlib import resources
 from functools import lru_cache
+from types import MethodType
 
 from mcp import types
 from mcp.server.fastmcp import FastMCP
@@ -21,13 +19,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
-from .api.routes import make_routes
-from .api.tools import register_tools
-from .ghidra.client import GhidraClient
+from .api import make_routes, register_tools
+from .api.envelopes import envelope_ok
 from .utils.logging import configure_root
 
-MCP_SERVER = FastMCP("ghidra-bridge")
-_ghidra_server_url = os.getenv("GHIDRA_SERVER_URL", "http://127.0.0.1:8080/")
+MCP_SERVER = FastMCP("mcp-server-template")
 _CONFIGURED = False
 
 
@@ -40,9 +36,6 @@ class BridgeState:
     ready: asyncio.Event = field(default_factory=asyncio.Event)
     initialization_logged: bool = False
     last_init_ts: str | None = None
-    ghidra_sema: asyncio.Semaphore = field(
-        default_factory=lambda: asyncio.Semaphore(1)
-    )
 
 
 _BRIDGE_STATE = BridgeState()
@@ -50,31 +43,9 @@ _STATE_LOCK = asyncio.Lock()
 _SSE_LOGGER = logging.getLogger("bridge.sse")
 
 
-_REQUEST_SCHEMA_MAP = {
-    "/api/search_strings.json": "search_strings.request.v1.json",
-    "/api/search_functions.json": "search_functions.request.v1.json",
-    "/api/search_imports.json": "search_imports.request.v1.json",
-    "/api/search_exports.json": "search_exports.request.v1.json",
-}
-
-_RESPONSE_SCHEMA_MAP = {
-    "/api/search_strings.json": "search_strings.v1.json",
-    "/api/search_functions.json": "search_functions.v1.json",
-    "/api/search_imports.json": "search_imports.v1.json",
-    "/api/search_exports.json": "search_exports.v1.json",
-}
-
-
-@lru_cache(maxsize=None)
-def _load_schema(name: str) -> dict[str, object]:
-    with resources.files("bridge.api.schemas").joinpath(name).open("r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
 def _build_openapi_schema(routes: list[Route]) -> dict[str, object]:
     paths: dict[str, dict[str, object]] = {}
     for route in routes:
-        # Only document standard HTTP routes.
         if not isinstance(route, Route):  # pragma: no cover - defensive
             continue
         if route.path == "/openapi.json":
@@ -82,61 +53,35 @@ def _build_openapi_schema(routes: list[Route]) -> dict[str, object]:
         methods = sorted(route.methods or set())
         if not methods:
             continue
-        operations = paths.setdefault(route.path, {})
+        operations: dict[str, object] = {}
         for method in methods:
-            operation: dict[str, object] = {
+            operations[method.lower()] = {
                 "summary": route.name or getattr(route.endpoint, "__name__", "handler"),
-            }
-            if method == "POST":
-                request_schema_name = _REQUEST_SCHEMA_MAP.get(route.path)
-                if request_schema_name is not None:
-                    operation["requestBody"] = {
-                        "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": _load_schema(request_schema_name)
-                            }
-                        },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {"type": "object"}}},
                     }
-            response_schema_name = _RESPONSE_SCHEMA_MAP.get(route.path)
-            if response_schema_name is not None:
-                operation["x-response-model"] = response_schema_name
-                operation.setdefault("responses", {})["200"] = {
-                    "description": "Successful Response",
-                    "content": {
-                        "application/json": {
-                            "schema": _load_schema(response_schema_name)
-                        }
-                    },
-                }
-            operations[method.lower()] = operation
+                },
+            }
+        paths[route.path] = operations
     return {
         "openapi": "3.1.0",
-        "info": {
-            "title": "MCP Server Template API",
-            "version": "1.0.0",
-        },
+        "info": {"title": "MCP Server Template API", "version": "0.0.0"},
         "paths": paths,
     }
 
 
-def set_ghidra_base_url(url: str) -> None:
-    """Override the default Ghidra server used by API client factories."""
-
-    global _ghidra_server_url
-    _ghidra_server_url = url
-
-
-def _client_factory() -> GhidraClient:
-    return GhidraClient(_ghidra_server_url)
-
-
 def configure() -> None:
+    """Configure logging, tool registration, and readiness hooks."""
+
     global _CONFIGURED
     if _CONFIGURED:
         return
+
     configure_root()
-    register_tools(MCP_SERVER, client_factory=_client_factory)
+    register_tools(MCP_SERVER)
+
     if types.InitializedNotification not in MCP_SERVER._mcp_server.notification_handlers:
         async def _mark_ready(_: types.InitializedNotification) -> None:
             async with _STATE_LOCK:
@@ -150,6 +95,7 @@ def configure() -> None:
         MCP_SERVER._mcp_server.notification_handlers[
             types.InitializedNotification
         ] = _mark_ready
+
     _CONFIGURED = True
 
 
@@ -181,7 +127,7 @@ def _guarded_sse_app(self: FastMCP) -> Starlette:
         method = payload.get("method")
         return method in {"initialize", "notifications/initialized"}
 
-    async def handle_get(request: Request) -> None:
+    async def handle_get(request: Request) -> Response | JSONResponse:
         client = request.client or ("unknown", 0)
         user_agent = request.headers.get("user-agent", "")
         async with _STATE_LOCK:
@@ -363,8 +309,10 @@ def _guarded_sse_app(self: FastMCP) -> Starlette:
     )
 
 
+@lru_cache(maxsize=1)
 def build_api_app() -> Starlette:
     configure()
+
     async def state(_: Request) -> JSONResponse:
         async with _STATE_LOCK:
             session_ready = _BRIDGE_STATE.ready.is_set()
@@ -376,19 +324,17 @@ def build_api_app() -> Starlette:
                 "connects": _BRIDGE_STATE.connects,
                 "last_init_ts": _BRIDGE_STATE.last_init_ts,
             }
-        return JSONResponse(payload)
+        return JSONResponse(envelope_ok(payload))
 
-    state_route = Route("/state", state, methods=["GET"], name="state")
+    state_route = Route("/api/state", state, methods=["GET"], name="state")
 
-    routes = list(make_routes(_client_factory, call_semaphore=_BRIDGE_STATE.ghidra_sema))
+    routes = list(make_routes())
     schema = _build_openapi_schema([*routes, state_route])
 
     async def openapi(_: Request) -> JSONResponse:
         return JSONResponse(schema)
 
-    openapi_route = Route(
-        "/openapi.json", openapi, methods=["GET"], name="openapi"
-    )
+    openapi_route = Route("/api/openapi.json", openapi, methods=["GET"], name="openapi")
 
     routes.extend([openapi_route, state_route])
     return Starlette(routes=routes)
@@ -398,23 +344,12 @@ def create_app() -> Starlette:
     """Factory compatible with ``uvicorn --factory``."""
 
     api_app = build_api_app()
-    sse_app = MCP_SERVER.sse_app()
-    api_app.router.routes.extend(sse_app.routes)
-    return api_app
+    sse_app = _guarded_sse_app(MCP_SERVER)
+
+    routes = [*api_app.routes, *sse_app.routes]
+    return Starlette(routes=routes)
 
 
-app = build_api_app()
+__all__ = ["MCP_SERVER", "build_api_app", "configure", "create_app"]
 
-
-# Install the guarded SSE app on import so both tests and runtime honour it.
 MCP_SERVER.sse_app = MethodType(_guarded_sse_app, MCP_SERVER)
-
-
-__all__ = [
-    "MCP_SERVER",
-    "app",
-    "build_api_app",
-    "configure",
-    "create_app",
-    "set_ghidra_base_url",
-]

@@ -1,67 +1,34 @@
-# Getting started
+# Getting Started
 
-This guide covers installation, local execution, and configuration for the Ghidra MCPd server.
-
-## Install
-
-Use Python 3.10+ and create an isolated environment:
+## 1. Install dependencies
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-The bridge depends on Ghidra's headless components through the bundled plugin. No additional system packages are required for basic usage.
-
-## Run
-
-Launch the deterministic ASGI app with Uvicorn:
+## 2. Run the server
 
 ```bash
 uvicorn bridge.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-The server exposes REST endpoints under `/api/*.json`, `/openapi.json`, server-sent events on `/sse`, and session state via `/state`. Clients should wait for readiness before issuing `/messages` calls; premature traffic receives HTTP 425 with `{"error":"mcp_not_ready"}`.
+The server exposes:
 
-Batch-oriented tools (`disassemble_batch`, `read_words`, `search_scalars_with_context`) are available once the SSE bridge reports ready. When running against large programs, favor these endpoints to reduce token churn compared to issuing many single-address calls.
+- `GET /api/ping.json`
+- `GET /api/version.json`
+- `GET /api/state`
+- `GET /api/openapi.json`
+- `GET /sse`
+- `POST /messages`
 
-## Configuration
+## 3. Connect an MCP client
 
-Set environment variables before starting the server to adjust safety limits and auditing:
+The template bundles an OpenWebUI-compatible shim. Use the CLI helpers or the FastMCP client to point your tooling at the `/sse`
+endpoint. Only one SSE client can be active at a time; additional connections return HTTP 409 until the first disconnects.
 
-- `KMYMCP_ENABLE_WRITES` (default `false`)
-  - Disable or enable write operations globally. When `false` or when requests include `dry_run=true`, write handlers perform no mutations.
-- `KMYMCP_MAX_WRITES_PER_REQUEST` (default `2`)
-  - Caps the number of writes a single call may perform. Surpassing the cap raises `SafetyLimitExceeded`.
-- `KMYMCP_MAX_ITEMS_PER_BATCH` (default `256`)
-  - Applies to batch endpoints and search windows, including `search_scalars_with_context`. Values above the limit raise `SafetyLimitExceeded` to preserve deterministic token budgets.
-- `KMYMCP_AUDIT_LOG`
-  - Optional filesystem path for JSONL write audits. When unset, successful writes are not logged.
-- `BRIDGE_OPTIONAL_ADAPTERS`
-  - Comma-separated list of optional Ghidra adapters to enable. Unknown entries fail fast at startup.
+## 4. Extend with tools
 
-For reproducibility, copy `.env.sample` to `.env`, edit values, and load via `export $(cat .env | xargs)` (or a shell equivalent) prior to launching Uvicorn.
-
-### Batch limits (defaults)
-
-The bridge enforces deterministic caps on batch-style operations to keep token usage predictable. All of the following limits default to `KMYMCP_MAX_ITEMS_PER_BATCH = 256` and raise `SafetyLimitExceeded` when exceeded (see the [error reference](troubleshooting.md#error-reference) for envelope details):
-
-| Operation | Capped dimension | Default | Override |
-| --- | --- | --- | --- |
-| `disassemble_batch` | Addresses per request | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
-| `read_words` | Words per request | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
-| `search_strings`, `search_imports`, `search_exports`, `search_xrefs_to`, `strings_compact` | Window size (`offset + limit`) | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
-| `search_scalars_with_context` | Matches returned | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
-
-Set the environment variable before starting the server to raise the ceiling, for example:
-
-```bash
-KMYMCP_MAX_ITEMS_PER_BATCH=512 uvicorn bridge.app:create_app --factory --host 127.0.0.1 --port 8000
-```
-
-Keep an eye on `/state.limit_hits` to confirm the new cap is sufficient for your workload.
-
-## Token efficiency notes
-
-Ghidra MCPd keeps responses compact by enforcing deterministic schema envelopes (`{"ok":bool,"data":object|null,"errors":[]}`) and predictable limits. In typical analysis sessions, combining `disassemble_batch` with contextual search reduces total request tokens by roughly 70% (example: ~80k tokens before batching → ~25k after). Actual savings depend on program size and client prompting, but the enforced caps above protect against unbounded payloads.
+Create a module under `bridge/backends/` with a `register(server)` function. Register tools using the FastMCP decorator API. The
+example backend `bridge/backends/example.py` demonstrates a simple `echo` tool.
