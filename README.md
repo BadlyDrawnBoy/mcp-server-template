@@ -63,6 +63,7 @@ An illustrative stub is included in `bridge/backends/example.py`.
 Run the tests with:
 
 ```bash
+./bin/dev # creates .venv if necessary and starts the server
 pytest
 ```
 
