@@ -113,7 +113,7 @@ def _build_openapi_schema(routes: list[Route]) -> dict[str, object]:
     return {
         "openapi": "3.1.0",
         "info": {
-            "title": "Ghidra MCP Bridge API",
+            "title": "MCP Server Template API",
             "version": "1.0.0",
         },
         "paths": paths,

@@ -22,7 +22,7 @@ def build_openwebui_shim(
         return JSONResponse(
             {
                 "openapi": "3.1.0",
-                "info": {"title": "Ghidra MCP Bridge (stub)", "version": "0.1"},
+                "info": {"title": "MCP Server Template (stub)", "version": "0.1"},
                 "x-openwebui-mcp": {
                     "transport": "sse",
                     "sse_url": "/sse",
