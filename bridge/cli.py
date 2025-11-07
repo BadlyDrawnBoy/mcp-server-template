@@ -1,63 +1,53 @@
-"""Reusable CLI helpers for bridge entry points."""
+"""Minimal CLI helpers for running the MCP server template."""
 from __future__ import annotations
 
 import argparse
 import logging
-import os
 import threading
 from typing import Callable
 
 import uvicorn
 from starlette.applications import Starlette
 
-
 ShimFactory = Callable[[str], Starlette]
 StartSSE = Callable[[str, int], None]
 RunStdIO = Callable[[], None]
-SetGhidraURL = Callable[[str], None]
 
 
-def build_parser(default_ghidra_server: str) -> argparse.ArgumentParser:
-    """Create an argument parser mirroring the legacy CLI flags."""
-    parser = argparse.ArgumentParser(
-        description="Ghidra MCP Bridge with SSE and OpenWebUI shim"
-    )
-    parser.add_argument(
-        "--ghidra-server",
-        type=str,
-        default=default_ghidra_server,
-        help=f"Ghidra-Bridge URL, default: {default_ghidra_server}",
-    )
+def build_parser() -> argparse.ArgumentParser:
+    """Create an argument parser for the template runtime."""
+
+    parser = argparse.ArgumentParser(description="Generic MCP server template")
     parser.add_argument(
         "--transport",
         type=str,
         default="sse",
         choices=["stdio", "sse"],
-        help="MCP-Transport (Open WebUI braucht SSE).",
+        help="Transport mechanism to expose (default: sse)",
     )
     parser.add_argument(
         "--mcp-host",
         type=str,
         default="127.0.0.1",
-        help="Host für internen MCP-SSE-Server (Upstream), default: 127.0.0.1",
+        help="Host for the internal MCP SSE server",
     )
     parser.add_argument(
         "--mcp-port",
         type=int,
         default=8099,
-        help="Port für internen MCP-SSE-Server (Upstream), default: 8099",
+        help="Port for the internal MCP SSE server",
     )
     parser.add_argument(
         "--shim-host",
         type=str,
         default="127.0.0.1",
-        help="Host für Shim/Proxy (für Open WebUI), default: 127.0.0.1",
+        help="Host for the optional OpenWebUI shim",
     )
     parser.add_argument(
         "--shim-port",
         type=int,
         default=8081,
-        help="Port für Shim/Proxy (für Open WebUI), default: 8081",
+        help="Port for the optional OpenWebUI shim",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     return parser
@@ -67,21 +57,14 @@ def run(
     args: argparse.Namespace,
     *,
     logger: logging.Logger,
-    default_ghidra_server: str,
-    set_ghidra_url: SetGhidraURL,
     start_sse: StartSSE,
     run_stdio: RunStdIO,
     shim_factory: ShimFactory,
 ) -> None:
     """Execute the CLI behaviour shared by legacy and modular entry points."""
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
-
-    ghidra_url = os.getenv(
-        "GHIDRA_SERVER_URL", args.ghidra_server or default_ghidra_server
-    )
-    set_ghidra_url(ghidra_url)
-    logger.info("[Bridge] Connecting to Ghidra server at %s", ghidra_url)
 
     if args.transport == "sse":
         thread = threading.Thread(

@@ -1,20 +1,13 @@
 # Configuration
 
-Set via environment variables:
+The server reads environment variables with the `MCP_` prefix during startup. These controls are centralised in
+`bridge/utils/config.py`.
 
-- `KMYMCP_ENABLE_WRITES` (default: `false`)
-  Write endpoints honor this flag. When `false` or when requests pass `dry_run=true`, no writes occur.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_ENABLE_WRITES` | `false` | Allows tool implementations to perform write operations when true. |
+| `MCP_MAX_WRITES_PER_REQUEST` | `2` | Upper bound enforced by `record_write_attempt`. |
+| `MCP_MAX_ITEMS_PER_BATCH` | `256` | Maximum allowed batch size tracked by `enforce_batch_limit`. |
+| `MCP_AUDIT_LOG` | _(unset)_ | Optional filesystem path for audit logging (JSON lines). |
 
-- `KMYMCP_AUDIT_LOG`
-  Optional filesystem path for JSONL write audits. When unset, successful writes are not recorded.
-
-- `KMYMCP_MAX_WRITES_PER_REQUEST`
-  Hard limit of writes any single request may perform.
-
-- `KMYMCP_MAX_ITEMS_PER_BATCH`
-  Bound for batch payload sizes across deterministic endpoints.
-
-- `BRIDGE_OPTIONAL_ADAPTERS` (e.g., `"x86,i386"`)
-  Enables optional architecture adapters. Unknown names raise a descriptive error at startup.
-
-Place local defaults in `.env.sample` → `.env` and load them before running the bridge.
+Set these via environment variables, an `.env` file, or your process manager.

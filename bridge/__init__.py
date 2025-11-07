@@ -1,1 +1,1 @@
-"""Modular Python bridge for the Ghidra MCP server."""
+"""Generic MCP server template."""
