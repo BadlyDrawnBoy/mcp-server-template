@@ -30,13 +30,13 @@ Batch-oriented tools (`disassemble_batch`, `read_words`, `search_scalars_with_co
 
 Set environment variables before starting the server to adjust safety limits and auditing:
 
-- `GHIDRA_MCP_ENABLE_WRITES` (default `false`)
+- `KMYMCP_ENABLE_WRITES` (default `false`)
   - Disable or enable write operations globally. When `false` or when requests include `dry_run=true`, write handlers perform no mutations.
-- `GHIDRA_MCP_MAX_WRITES_PER_REQUEST` (default `2`)
+- `KMYMCP_MAX_WRITES_PER_REQUEST` (default `2`)
   - Caps the number of writes a single call may perform. Surpassing the cap raises `SafetyLimitExceeded`.
-- `GHIDRA_MCP_MAX_ITEMS_PER_BATCH` (default `256`)
+- `KMYMCP_MAX_ITEMS_PER_BATCH` (default `256`)
   - Applies to batch endpoints and search windows, including `search_scalars_with_context`. Values above the limit raise `SafetyLimitExceeded` to preserve deterministic token budgets.
-- `GHIDRA_MCP_AUDIT_LOG`
+- `KMYMCP_AUDIT_LOG`
   - Optional filesystem path for JSONL write audits. When unset, successful writes are not logged.
 - `BRIDGE_OPTIONAL_ADAPTERS`
   - Comma-separated list of optional Ghidra adapters to enable. Unknown entries fail fast at startup.
@@ -45,19 +45,19 @@ For reproducibility, copy `.env.sample` to `.env`, edit values, and load via `ex
 
 ### Batch limits (defaults)
 
-The bridge enforces deterministic caps on batch-style operations to keep token usage predictable. All of the following limits default to `GHIDRA_MCP_MAX_ITEMS_PER_BATCH = 256` and raise `SafetyLimitExceeded` when exceeded (see the [error reference](troubleshooting.md#error-reference) for envelope details):
+The bridge enforces deterministic caps on batch-style operations to keep token usage predictable. All of the following limits default to `KMYMCP_MAX_ITEMS_PER_BATCH = 256` and raise `SafetyLimitExceeded` when exceeded (see the [error reference](troubleshooting.md#error-reference) for envelope details):
 
 | Operation | Capped dimension | Default | Override |
 | --- | --- | --- | --- |
-| `disassemble_batch` | Addresses per request | 256 | `GHIDRA_MCP_MAX_ITEMS_PER_BATCH`
-| `read_words` | Words per request | 256 | `GHIDRA_MCP_MAX_ITEMS_PER_BATCH`
-| `search_strings`, `search_imports`, `search_exports`, `search_xrefs_to`, `strings_compact` | Window size (`offset + limit`) | 256 | `GHIDRA_MCP_MAX_ITEMS_PER_BATCH`
-| `search_scalars_with_context` | Matches returned | 256 | `GHIDRA_MCP_MAX_ITEMS_PER_BATCH`
+| `disassemble_batch` | Addresses per request | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
+| `read_words` | Words per request | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
+| `search_strings`, `search_imports`, `search_exports`, `search_xrefs_to`, `strings_compact` | Window size (`offset + limit`) | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
+| `search_scalars_with_context` | Matches returned | 256 | `KMYMCP_MAX_ITEMS_PER_BATCH`
 
 Set the environment variable before starting the server to raise the ceiling, for example:
 
 ```bash
-GHIDRA_MCP_MAX_ITEMS_PER_BATCH=512 uvicorn bridge.app:create_app --factory --host 127.0.0.1 --port 8000
+KMYMCP_MAX_ITEMS_PER_BATCH=512 uvicorn bridge.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
 Keep an eye on `/state.limit_hits` to confirm the new cap is sufficient for your workload.

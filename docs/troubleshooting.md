@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `mcp_not_ready` | `POST /messages` before the SSE stream and session finish initialising | `425 Too Early` with `{"error":"mcp_not_ready"}` |
 | SSE single-stream guard | Second `GET /sse` while another stream is open, or non-GET method | `409 Conflict` (duplicate stream) or `405 Method Not Allowed` with `{"allow":"GET"}` |
-| `SAFETY_LIMIT` | Batch/search window or write count exceeds configured caps (`GHIDRA_MCP_MAX_ITEMS_PER_BATCH`, `GHIDRA_MCP_MAX_WRITES_PER_REQUEST`) | `400 Bad Request` envelope: `{"ok":false,"errors":[{"code":"SAFETY_LIMIT","message":"strings.search.window limit exceeded: attempted 400 > allowed 256"}]}` |
+| `SAFETY_LIMIT` | Batch/search window or write count exceeds configured caps (`KMYMCP_MAX_ITEMS_PER_BATCH`, `KMYMCP_MAX_WRITES_PER_REQUEST`) | `400 Bad Request` envelope: `{"ok":false,"errors":[{"code":"SAFETY_LIMIT","message":"strings.search.window limit exceeded: attempted 400 > allowed 256"}]}` |
 | `INVALID_ARGUMENT` | Request parameters fail validation (negative offsets, non-integer limits, malformed hex) | `400 Bad Request` envelope with `code="INVALID_ARGUMENT"` |
 | `SCHEMA_INVALID` | JSON body violates schema (missing required fields, unexpected keys) | `400 Bad Request` envelope with `code="SCHEMA_INVALID"` |
 | `WRITE_DISABLED_DRY_RUN` | Write attempted while writes are disabled or `dry_run=false` without permission | `400 Bad Request` envelope: `{"ok":false,"errors":[{"code":"WRITE_DISABLED_DRY_RUN","message":"Writes are disabled while dry_run is false."}]}` |

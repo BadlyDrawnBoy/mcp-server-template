@@ -57,8 +57,8 @@ Throttle polling to at least every 500 ms to avoid log spam. The same endpoint r
 
 Write operations are guarded by deterministic envelopes and configuration flags:
 
-- `ENABLE_WRITES`: bound to `GHIDRA_MCP_ENABLE_WRITES`. When `false`, write routes short-circuit and return `ok=false` with errors.
+- `ENABLE_WRITES`: bound to `KMYMCP_ENABLE_WRITES`. When `false`, write routes short-circuit and return `ok=false` with errors.
 - `dry_run`: per-request override that forces non-destructive execution even when writes are enabled.
-- `SafetyLimitExceeded`: error raised when batch sizes, search windows, or write counts exceed configured caps (e.g., `GHIDRA_MCP_MAX_ITEMS_PER_BATCH`, `GHIDRA_MCP_MAX_WRITES_PER_REQUEST`). Limit hits populate `/state.limit_hits` for downstream monitoring.
+- `SafetyLimitExceeded`: error raised when batch sizes, search windows, or write counts exceed configured caps (e.g., `KMYMCP_MAX_ITEMS_PER_BATCH`, `KMYMCP_MAX_WRITES_PER_REQUEST`). Limit hits populate `/state.limit_hits` for downstream monitoring.
 
 Keep writes idempotent and monitor `/state` for repeated limit violations to fine-tune batch sizes or adjust configuration within safe bounds.

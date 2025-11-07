@@ -1,7 +1,7 @@
 # bridge/tests/contract/test_search_endpoints_min.py
 import os, requests, re, json, time
 
-BASE = os.environ.get("GHIDRA_MCP_URL", "http://127.0.0.1:8081")
+BASE = os.environ.get("KMYMCP_URL", "http://127.0.0.1:8081")
 
 def post(path, body):
     r = requests.post(f"{BASE}{path}", json=body, timeout=30)
