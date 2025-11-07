@@ -1,34 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  cat <<'USAGE'
+Usage: .plan/add_manifest_tasks.sh TASK_ID "Task title" [after_id[,after_id...]]
+
+Appends a task entry to .plan/tasks.manifest.json (creating the file if necessary).
+Pass a comma-separated list of task IDs as the optional third argument to express ordering dependencies.
+USAGE
+  exit 1
+fi
+
 mf=".plan/tasks.manifest.json"
 tmp="$mf.tmp"
 
-add() {
-  local id="$1" title="$2" after_csv="$3"
-  # baue after-Array aus CSV
-  local after
-  after="$(
-    jq -Rc '
-      if length == 0 then []
-      else split(",")
-        | map(gsub("^\\s+|\\s+$"; ""))
-        | map(select(length > 0))
-      end
-    ' <<<"$after_csv"
-  )"
-  # jq: wenn id noch nicht vorhanden → anhängen
-  jq --arg id "$id" --arg title "$title" --argjson after "$after" '
-    if any(.sequence[]; .id==$id) then .
-    else .sequence += [ { "id": $id, "title": $title, "after": $after } ]
-    end
-  ' "$mf" > "$tmp" && mv "$tmp" "$mf"
-}
+mkdir -p "$(dirname "$mf")"
+[[ -f "$mf" ]] || echo '[]' >"$mf"
 
-# --- New maintenance tasks (analysis → actionable) ---
-add ADAPTER-PROBERESULT-CLEANUP "Remove dead ProbeResult exports/imports" "OPTIONAL-ADAPTERS"
-add ADAPTER-PROBE-ALIAS          "Introduce Probe typing alias in adapters Protocol" "OPTIONAL-ADAPTERS"
-add SMOKE-MOJIBAKE-FIX           "Fix mojibake in bin/smoke.sh" "DOCS-BOOTSTRAP"
-add PLAN-CHECK-IO-POLISH         "Single-read IO + docstrings in plan_check.py" "PLAN-CHECK"
+id="$1"
+title="$2"
+after_csv="${3:-}"
 
-jq . "$mf" >/dev/null   # JSON quick-validate
-echo "Updated: $mf"
+after=$(jq -Rc '
+  if length == 0 then []
+  else split(",")
+    | map(gsub("^\\s+|\\s+$"; ""))
+    | map(select(length > 0))
+  end
+' <<<"$after_csv")
+
+jq --arg id "$id" --arg title "$title" --argjson after "$after" '
+  if any(.[]; .id == $id) then .
+  else . + [{ "id": $id, "title": $title, "after": $after }]
+  end
+' "$mf" >"$tmp" && mv "$tmp" "$mf"
+
+echo "Added $id to $mf"
+

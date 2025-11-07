@@ -181,7 +181,7 @@ def render_api(doc: Mapping[str, Any], source: str) -> str:
     info = doc.get("info", {})
     title = info.get("title", "OpenAPI document")
     version = info.get("version", "")
-    parts.append("# Ghidra MCPd API reference")
+    parts.append("# MCP Server API reference")
     parts.append("")
     parts.append(f"_Source: {source} — {title} v{version}_")
     parts.append("")
